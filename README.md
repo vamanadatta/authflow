@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # AuthFlow - Client Intake, Company Formation & Master Excel Portal
 
 A full-stack web application designed for **Client Raw Data Intake**, **Master Excel Generation**, and **New Company Formation & Required Forms Intake** with **Authentication** built with **Python (Flask)**, **openpyxl**, **SQLite**, and **Glassmorphism UI**.
@@ -89,3 +90,7 @@ d:\vamsi anna new project\
     ├── dashboard.html     # Raw Data Intake & Accounting Excel Register
     └── company_formation.html # New Company Formation & Required Forms Wizard
 ```
+=======
+# authflow
+A modern Flask authentication web application featuring login, registration, password reset, and a responsive glassmorphic UI.
+>>>>>>> d29997c088ec93e398ea4173e87e506a45ac8094
