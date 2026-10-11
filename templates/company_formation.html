@@ -1,0 +1,528 @@
+{% extends "base.html" %}
+
+{% block title %}New Company Formation & Document Intake{% endblock %}
+
+{% block content %}
+<div class="portal-wrapper animate-slide-up">
+    <!-- Top Hero Section -->
+    <div class="glass-card portal-hero">
+        <div class="portal-hero-left">
+            <div class="user-avatar-company">
+                <i class="fa-solid fa-building-columns"></i>
+            </div>
+            <div>
+                <div class="hero-badges">
+                    <span class="role-badge role-{{ role }}">
+                        <i class="fa-solid fa-user-shield"></i> {{ role|upper }} VIEW
+                    </span>
+                    <a href="{{ url_for('toggle_role') }}" class="btn-toggle-role" title="Switch between Client and Admin view">
+                        <i class="fa-solid fa-arrows-rotate"></i> Switch to {{ 'Client' if role == 'admin' else 'Admin' }} View
+                    </a>
+                </div>
+                <h1 class="portal-title">New Company Formation Portal</h1>
+                <p class="portal-subtitle">Register new business entities and upload all required statutory incorporation forms.</p>
+            </div>
+        </div>
+        <div class="portal-hero-right">
+            <a href="{{ url_for('export_companies_excel') }}" class="btn btn-emerald" id="exportCompaniesBtn">
+                <i class="fa-solid fa-file-excel"></i>
+                <span>Export Companies (.xlsx)</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        <div class="glass-card stat-card">
+            <div class="stat-icon bg-indigo"><i class="fa-solid fa-building"></i></div>
+            <div class="stat-data">
+                <span class="stat-value">{{ stats.total_companies }}</span>
+                <span class="stat-label">Total Applications</span>
+            </div>
+        </div>
+        <div class="glass-card stat-card">
+            <div class="stat-icon bg-amber"><i class="fa-solid fa-hourglass-half"></i></div>
+            <div class="stat-data">
+                <span class="stat-value">{{ stats.pending_review }}</span>
+                <span class="stat-label">Under Review</span>
+            </div>
+        </div>
+        <div class="glass-card stat-card">
+            <div class="stat-icon bg-emerald"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="stat-data">
+                <span class="stat-value">{{ stats.approved_companies }}</span>
+                <span class="stat-label">Approved Entities</span>
+            </div>
+        </div>
+        <div class="glass-card stat-card">
+            <div class="stat-icon bg-cyan"><i class="fa-solid fa-folder-open"></i></div>
+            <div class="stat-data">
+                <span class="stat-value">{{ stats.total_documents }}</span>
+                <span class="stat-label">Forms Uploaded</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="portal-tabs">
+        <button class="portal-tab-btn active" onclick="switchCompanyTab('newCompanyTab')">
+            <i class="fa-solid fa-file-signature"></i>
+            <span>1. Register New Company & Upload Forms</span>
+        </button>
+        <button class="portal-tab-btn" onclick="switchCompanyTab('applicationsTab')">
+            <i class="fa-solid fa-folder-tree"></i>
+            <span>2. Company Applications Register ({{ applications|length }})</span>
+        </button>
+    </div>
+
+    <!-- TAB 1: New Company Registration Wizard -->
+    <div id="newCompanyTab" class="portal-tab-content active">
+        <div class="glass-card">
+            <div class="section-heading">
+                <div class="heading-badge"><i class="fa-solid fa-passport"></i> Company Formation Application</div>
+                <h2>Register a New Company</h2>
+                <p>Provide your business particulars and attach the required registration forms. <em>(Form titles can be updated later per jurisdiction requirements).</em></p>
+            </div>
+
+            <form action="{{ url_for('submit_company_formation') }}" method="POST" enctype="multipart/form-data" class="company-form">
+                <!-- Part 1: Company Profile Information -->
+                <div class="form-section-box">
+                    <div class="form-section-title">
+                        <i class="fa-solid fa-id-card-clip"></i>
+                        <span>Part 1: Company Profile & Contact Information</span>
+                    </div>
+
+                    <div class="form-grid-3">
+                        <div class="form-group">
+                            <label class="form-label" for="companyName">Proposed Company Name <span class="text-rose">*</span></label>
+                            <input type="text" id="companyName" name="company_name" class="form-control" placeholder="e.g. Apex Global Solutions Pvt Ltd" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="businessType">Business Structure / Entity Type <span class="text-rose">*</span></label>
+                            <select id="businessType" name="business_type" class="form-control" required>
+                                <option value="Private Limited Company (Pvt Ltd)">Private Limited Company (Pvt Ltd)</option>
+                                <option value="Limited Liability Company (LLC)">Limited Liability Company (LLC)</option>
+                                <option value="Corporation (C-Corp / S-Corp)">Corporation (C-Corp / S-Corp)</option>
+                                <option value="General Partnership">General Partnership</option>
+                                <option value="Sole Proprietorship">Sole Proprietorship</option>
+                                <option value="Public Limited Company">Public Limited Company</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="industry">Industry / Sector</label>
+                            <select id="industry" name="industry" class="form-control">
+                                <option value="Technology & Software">Technology & Software</option>
+                                <option value="Finance & Banking">Finance & Banking</option>
+                                <option value="Retail & E-Commerce">Retail & E-Commerce</option>
+                                <option value="Healthcare & Pharma">Healthcare & Pharma</option>
+                                <option value="Manufacturing & Export">Manufacturing & Export</option>
+                                <option value="Consulting & Professional Services">Consulting & Professional Services</option>
+                                <option value="Real Estate & Construction">Real Estate & Construction</option>
+                                <option value="General Trading">General Trading</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-3 mt-3">
+                        <div class="form-group">
+                            <label class="form-label" for="contactPerson">Director / Contact Person</label>
+                            <input type="text" id="contactPerson" name="contact_person" class="form-control" value="{{ user['full_name'] }}" placeholder="e.g. Alexander Vance">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="contactEmail">Official Email</label>
+                            <input type="email" id="contactEmail" name="contact_email" class="form-control" value="{{ user['email'] }}" placeholder="e.g. contact@company.com">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="contactPhone">Contact Phone Number</label>
+                            <input type="tel" id="contactPhone" name="contact_phone" class="form-control" placeholder="e.g. +1 (555) 019-2834">
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-3">
+                        <label class="form-label" for="registeredAddress">Registered Business Address</label>
+                        <textarea id="registeredAddress" name="registered_address" class="form-control" rows="2" placeholder="Suite #, Building, Street, City, State/Province, Country, Postal Code"></textarea>
+                    </div>
+                </div>
+
+                <!-- Part 2: Required Statutory Forms -->
+                <div class="form-section-box mt-4">
+                    <div class="form-section-title justify-between">
+                        <div>
+                            <i class="fa-solid fa-folder-closed"></i>
+                            <span>Part 2: Upload Required Registration Forms</span>
+                        </div>
+                        <span class="sample-notice-pill">
+                            <i class="fa-solid fa-circle-info"></i> Sample Form Slots
+                        </span>
+                    </div>
+                    <p class="section-desc-note">
+                        Please attach the required documentation. You can upload PDF documents, scanned images (.jpg, .png), or Word files for each slot.
+                    </p>
+
+                    <div class="forms-upload-grid">
+                        {% for form_meta in required_forms %}
+                        <div class="form-upload-card" id="card_{{ form_meta.key }}">
+                            <div class="form-upload-card-header">
+                                <div class="form-badge-icon">
+                                    <i class="fa-solid fa-file-lines"></i>
+                                </div>
+                                <div class="form-upload-title-group">
+                                    <h4>{{ form_meta.title }}</h4>
+                                    <span class="form-req-pill {% if form_meta.required %}pill-req{% else %}pill-opt{% endif %}">
+                                        {{ form_meta.badge }}
+                                    </span>
+                                </div>
+                            </div>
+                            <p class="form-desc-text">{{ form_meta.description }}</p>
+                            
+                            <div class="form-input-container">
+                                <label for="file_{{ form_meta.key }}" class="btn-file-select">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    <span>Select File</span>
+                                </label>
+                                <input 
+                                    type="file" 
+                                    id="file_{{ form_meta.key }}" 
+                                    name="{{ form_meta.key }}" 
+                                    class="hidden-file-input"
+                                    onchange="handleFormFileSelected(this, 'status_{{ form_meta.key }}')"
+                                    {% if form_meta.required and loop.first %}required{% endif %}
+                                >
+                                <div id="status_{{ form_meta.key }}" class="file-chosen-status">No file selected</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <!-- Extra / Custom Form Slot -->
+                        <div class="form-upload-card custom-slot-card">
+                            <div class="form-upload-card-header">
+                                <div class="form-badge-icon bg-cyan-icon">
+                                    <i class="fa-solid fa-paperclip"></i>
+                                </div>
+                                <div class="form-upload-title-group">
+                                    <h4>Additional Supporting Document</h4>
+                                    <span class="form-req-pill pill-opt">Optional Slot</span>
+                                </div>
+                            </div>
+                            <div class="form-group mt-1">
+                                <input type="text" name="custom_title" class="form-control text-xs" placeholder="Document Name (e.g. Board Resolution, Power of Attorney)">
+                            </div>
+                            
+                            <div class="form-input-container mt-2">
+                                <label for="file_custom" class="btn-file-select">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    <span>Select File</span>
+                                </label>
+                                <input 
+                                    type="file" 
+                                    id="file_custom" 
+                                    name="custom_file" 
+                                    class="hidden-file-input"
+                                    onchange="handleFormFileSelected(this, 'status_custom')"
+                                >
+                                <div id="status_custom" class="file-chosen-status">No file selected</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="company-submit-bar mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fa-solid fa-check-to-slot"></i>
+                        <span>Submit Company Registration & Required Forms</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TAB 2: Company Applications Register -->
+    <div id="applicationsTab" class="portal-tab-content">
+        <div class="glass-card">
+            <div class="master-header-row">
+                <div class="section-heading">
+                    <div class="heading-badge"><i class="fa-solid fa-folder-tree"></i> Applications Register</div>
+                    <h2>Company Formation Applications</h2>
+                    <p>Track status, review uploaded statutory forms, and approve company incorporations.</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('export_companies_excel') }}" class="btn btn-emerald">
+                        <i class="fa-solid fa-file-excel"></i> Export to Excel
+                    </a>
+                </div>
+            </div>
+
+            {% if applications %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>App ID</th>
+                            <th>Company Name</th>
+                            <th>Business Entity</th>
+                            <th>Industry</th>
+                            <th>Contact Person</th>
+                            <th>Attached Forms</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for app_item in applications %}
+                        <tr>
+                            <td>#{{ app_item.id }}</td>
+                            <td>
+                                <strong>{{ app_item.company_name }}</strong>
+                                {% if app_item.registered_address %}
+                                <div class="text-xs text-muted"><i class="fa-solid fa-location-dot"></i> {{ app_item.registered_address[:30] }}...</div>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge-category">{{ app_item.business_type }}</span></td>
+                            <td>{{ app_item.industry or '-' }}</td>
+                            <td>
+                                <div>{{ app_item.contact_person or app_item.applicant_name }}</div>
+                                <div class="text-xs text-muted">{{ app_item.contact_email or app_item.applicant_email }}</div>
+                            </td>
+                            <td>
+                                <span class="badge-docs-count">
+                                    <i class="fa-solid fa-file-shield"></i> {{ app_item.doc_count }} Forms
+                                </span>
+                            </td>
+                            <td class="text-xs">{{ app_item.created_at[:10] }}</td>
+                            <td>
+                                <span class="badge-status status-{{ app_item.status|lower|replace(' ', '-') }}">
+                                    {{ app_item.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="table-action-btns">
+                                    <button type="button" class="btn-action btn-inspect" onclick="openCompanyModal({{ app_item.id }})" title="Review details & uploaded documents">
+                                        <i class="fa-solid fa-eye"></i> Review
+                                    </button>
+                                    <form action="{{ url_for('delete_company', app_id=app_item.id) }}" method="POST" onsubmit="return confirm('Delete this company registration application?')" style="display:inline;">
+                                        <button type="submit" class="btn-action btn-delete" title="Delete application">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fa-solid fa-building-circle-arrow-right empty-icon"></i>
+                <h3>No company applications submitted yet</h3>
+                <p>Submit your first company application and attach required forms in Step 1.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+     COMPANY REVIEW MODAL (Inspect details & all uploaded forms)
+     ========================================================================== -->
+<div id="companyModal" class="inspect-modal-backdrop" style="display: none;">
+    <div class="glass-card inspect-modal-container animate-slide-up">
+        <div class="modal-header">
+            <div class="modal-title-group">
+                <span class="modal-badge"><i class="fa-solid fa-building"></i> COMPANY REGISTRATION REVIEW</span>
+                <h2 id="compModalName">Company Details</h2>
+            </div>
+            <button type="button" class="modal-close-btn" onclick="closeCompanyModal()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="modal-body-split">
+            <!-- Left: Company Particulars & Status Form -->
+            <div class="modal-left-viewer">
+                <div class="viewer-header">
+                    <h4><i class="fa-solid fa-id-card"></i> Entity Information</h4>
+                    <span id="compModalStatusBadge" class="badge-status status-under-review">Under Review</span>
+                </div>
+                
+                <div class="detail-body">
+                    <div class="info-item">
+                        <span class="info-label">Structure</span>
+                        <span class="info-value" id="compModalType">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Industry</span>
+                        <span class="info-value" id="compModalIndustry">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Contact Person</span>
+                        <span class="info-value" id="compModalContactPerson">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Email</span>
+                        <span class="info-value" id="compModalContactEmail">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Phone</span>
+                        <span class="info-value" id="compModalContactPhone">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Address</span>
+                        <span class="info-value" id="compModalAddress">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Submitted On</span>
+                        <span class="info-value" id="compModalDate">-</span>
+                    </div>
+                </div>
+
+                <!-- Admin Status Update Form -->
+                <div class="admin-approval-box mt-3">
+                    <div class="viewer-header">
+                        <h4><i class="fa-solid fa-gavel"></i> Update Application Status</h4>
+                    </div>
+                    <form action="#" method="POST" id="compStatusForm">
+                        <div class="form-group">
+                            <label class="form-label">Application Status</label>
+                            <select name="status" id="compStatusSelect" class="form-control">
+                                <option value="Under Review">Under Review</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Needs Revision">Needs Revision</option>
+                            </select>
+                        </div>
+                        <div class="form-group mt-2">
+                            <label class="form-label">Reviewer Notes / Feedback</label>
+                            <textarea name="admin_notes" id="compAdminNotes" class="form-control" rows="2" placeholder="e.g. Form 2 verified, pending registration certificate generation..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block mt-3">
+                            <i class="fa-solid fa-floppy-disk"></i> Update Status & Notes
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right: Uploaded Required Forms List -->
+            <div class="modal-right-form">
+                <div class="viewer-header">
+                    <h4><i class="fa-solid fa-folder-open"></i> Uploaded Statutory Forms</h4>
+                    <span class="text-xs text-muted" id="compModalDocCount">0 Forms</span>
+                </div>
+
+                <div id="compModalDocumentsList" class="uploaded-docs-list">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Tab Switching
+function switchCompanyTab(tabId) {
+    document.querySelectorAll('.portal-tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.portal-tab-btn').forEach(el => el.classList.remove('active'));
+    
+    document.getElementById(tabId).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+
+// File Chosen Label update
+function handleFormFileSelected(input, statusElementId) {
+    const statusEl = document.getElementById(statusElementId);
+    if (!statusEl) return;
+    
+    if (input.files && input.files.length > 0) {
+        const file = input.files[0];
+        statusEl.className = 'file-chosen-status file-attached';
+        statusEl.innerHTML = `<i class="fa-solid fa-circle-check text-emerald"></i> ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    } else {
+        statusEl.className = 'file-chosen-status';
+        statusEl.textContent = 'No file selected';
+    }
+}
+
+// Company Modal Review
+function openCompanyModal(appId) {
+    fetch(`/company-formation/${appId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            document.getElementById('compModalName').textContent = data.company_name;
+            document.getElementById('compModalType').textContent = data.business_type;
+            document.getElementById('compModalIndustry').textContent = data.industry || '-';
+            document.getElementById('compModalContactPerson').textContent = data.contact_person || '-';
+            document.getElementById('compModalContactEmail').textContent = data.contact_email || '-';
+            document.getElementById('compModalContactPhone').textContent = data.contact_phone || '-';
+            document.getElementById('compModalAddress').textContent = data.registered_address || 'Not specified';
+            document.getElementById('compModalDate').textContent = data.created_at ? data.created_at.substring(0, 10) : '-';
+            
+            const badge = document.getElementById('compModalStatusBadge');
+            badge.textContent = data.status;
+            badge.className = `badge-status status-${data.status.toLowerCase().replace(/\s+/g, '-')}`;
+
+            // Admin form action
+            const form = document.getElementById('compStatusForm');
+            form.action = `/company-formation/${data.id}/status`;
+            document.getElementById('compStatusSelect').value = data.status;
+            document.getElementById('compAdminNotes').value = data.admin_notes || '';
+
+            // Documents list
+            const docsList = document.getElementById('compModalDocumentsList');
+            docsList.innerHTML = '';
+            document.getElementById('compModalDocCount').textContent = `${data.documents.length} Forms Attached`;
+
+            if (data.documents && data.documents.length > 0) {
+                data.documents.forEach(doc => {
+                    const docCard = document.createElement('div');
+                    docCard.className = 'doc-item-row';
+                    docCard.innerHTML = `
+                        <div class="doc-icon-badge">
+                            <i class="fa-solid fa-file-lines"></i>
+                        </div>
+                        <div class="doc-meta-info">
+                            <div class="doc-title"><strong>${doc.form_title}</strong></div>
+                            <div class="doc-sub">${doc.original_filename} &bull; ${(doc.file_size / 1024).toFixed(1)} KB</div>
+                        </div>
+                        <a href="${doc.file_url}" target="_blank" download class="btn-action btn-inspect" title="Download Form">
+                            <i class="fa-solid fa-download"></i> View / Download
+                        </a>
+                    `;
+                    docsList.appendChild(docCard);
+                });
+            } else {
+                docsList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-folder-open empty-icon"></i>
+                        <p>No forms uploaded for this application yet.</p>
+                    </div>
+                `;
+            }
+
+            document.getElementById('companyModal').style.display = 'flex';
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Failed to load application details.');
+        });
+}
+
+function closeCompanyModal() {
+    document.getElementById('companyModal').style.display = 'none';
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('companyModal');
+    if (event.target === modal) {
+        closeCompanyModal();
+    }
+};
+</script>
+{% endblock %}

@@ -1,0 +1,627 @@
+{% extends "base.html" %}
+
+{% block title %}Data Portal & Master Excel Management{% endblock %}
+
+{% block content %}
+<div class="portal-wrapper animate-slide-up">
+    <!-- Top Action / Status Bar -->
+    <div class="glass-card portal-hero">
+        <div class="portal-hero-left">
+            <div class="user-avatar-portal">
+                <i class="fa-solid fa-file-excel"></i>
+            </div>
+            <div>
+                <div class="hero-badges">
+                    <span class="role-badge role-{{ role }}">
+                        <i class="fa-solid fa-user-shield"></i> {{ role|upper }} VIEW
+                    </span>
+                    <a href="{{ url_for('toggle_role') }}" class="btn-toggle-role" title="Switch between Client and Admin view">
+                        <i class="fa-solid fa-arrows-rotate"></i> Switch to {{ 'Client' if role == 'admin' else 'Admin' }} View
+                    </a>
+                </div>
+                <h1 class="portal-title">Welcome, {{ user['full_name'] }}!</h1>
+                <p class="portal-subtitle">Client Raw Intake & Master Excel Portal — Transform raw uploads (receipt pictures, invoices, raw sheets) into a structured master Excel register.</p>
+            </div>
+        </div>
+        <div class="portal-hero-right">
+            <a href="{{ url_for('export_excel') }}" class="btn btn-excel-download" id="exportExcelBtn">
+                <i class="fa-solid fa-file-arrow-down"></i>
+                <span>Download Formatted Excel (.xlsx)</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Stats Grid -->
+    <div class="stats-grid">
+        <div class="glass-card stat-card">
+            <div class="stat-icon bg-indigo"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+            <div class="stat-data">
+                <span class="stat-value">{{ stats.total_submissions }}</span>
+                <span class="stat-label">Raw Submissions</span>
+            </div>
+        </div>
+        <div class="glass-card stat-card">
+            <div class="stat-icon bg-amber"><i class="fa-solid fa-clock-rotate-left"></i></div>
+            <div class="stat-data">
+                <span class="stat-value">{{ stats.pending_submissions }}</span>
+                <span class="stat-label">Pending Review</span>
+            </div>
+        </div>
+        <div class="glass-card stat-card">
+            <div class="stat-icon bg-emerald"><i class="fa-solid fa-table-cells"></i></div>
+            <div class="stat-data">
+                <span class="stat-value">{{ stats.total_records }}</span>
+                <span class="stat-label">Master Excel Rows</span>
+            </div>
+        </div>
+        <div class="glass-card stat-card">
+            <div class="stat-icon bg-cyan"><i class="fa-solid fa-receipt"></i></div>
+            <div class="stat-data">
+                <span class="stat-value">${{ "{:,.2f}".format(stats.total_expenditure) }}</span>
+                <span class="stat-label">Total Expenditure</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="portal-tabs">
+        <button class="portal-tab-btn active" onclick="switchTab('uploadTab')">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span>1. Upload Raw Data</span>
+        </button>
+        <button class="portal-tab-btn" onclick="switchTab('submissionsTab')">
+            <i class="fa-solid fa-list-check"></i>
+            <span>2. Raw Submissions Queue ({{ submissions|length }})</span>
+        </button>
+        <button class="portal-tab-btn" onclick="switchTab('masterTab')">
+            <i class="fa-solid fa-file-excel"></i>
+            <span>3. Master Formatted Sheet ({{ master_records|length }})</span>
+        </button>
+    </div>
+
+    <!-- TAB 1: Upload Raw Data -->
+    <div id="uploadTab" class="portal-tab-content active">
+        <div class="glass-card">
+            <div class="section-heading">
+                <div class="heading-badge"><i class="fa-solid fa-upload"></i> Step 1</div>
+                <h2>Client Raw Data Upload</h2>
+                <p>Upload raw documents from your client: receipts pictures, scanned invoices, raw spreadsheets (.xlsx / .csv), or bills.</p>
+            </div>
+
+            <form action="{{ url_for('upload_file') }}" method="POST" enctype="multipart/form-data" class="upload-form">
+                <div class="upload-dropzone" id="dropzone">
+                    <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
+                    <h3>Choose raw file or drag & drop here</h3>
+                    <p class="dropzone-hint">Supports: Excel (.xlsx, .xls, .csv), Images (.png, .jpg, .jpeg, .webp), PDF, Docs</p>
+                    <input type="file" name="file" id="fileInput" class="file-input-hidden" required>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
+                        <i class="fa-regular fa-folder-open"></i> Browse Files
+                    </button>
+                    <div id="selectedFileName" class="selected-file-badge" style="display: none;"></div>
+                </div>
+
+                <div class="form-grid-3">
+                    <div class="form-group">
+                        <label for="uploadTitle" class="form-label">Title / Document Name</label>
+                        <input type="text" id="uploadTitle" name="title" class="form-control" placeholder="e.g. March Office Supplies Receipts">
+                    </div>
+                    <div class="form-group">
+                        <label for="uploadCategory" class="form-label">Category</label>
+                        <select id="uploadCategory" name="category" class="form-control">
+                            <option value="Invoices">Invoices / Bills</option>
+                            <option value="Receipts">Receipts / Expenses</option>
+                            <option value="Raw Spreadsheet">Raw Excel / CSV Data</option>
+                            <option value="Client Statement">Bank / Vendor Statement</option>
+                            <option value="Other">Other Raw Data</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="uploadNotes" class="form-label">Notes / Instructions</label>
+                        <input type="text" id="uploadNotes" name="notes" class="form-control" placeholder="e.g. Please extract line items into Master Sheet">
+                    </div>
+                </div>
+
+                <div class="upload-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <span>Submit Raw Data for Processing</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TAB 2: Raw Submissions Queue -->
+    <div id="submissionsTab" class="portal-tab-content">
+        <div class="glass-card">
+            <div class="section-heading">
+                <div class="heading-badge"><i class="fa-solid fa-list-check"></i> Step 2</div>
+                <h2>Raw Submissions Review Queue</h2>
+                <p>Click <strong>"Inspect & Format"</strong> to view pictures/spreadsheets and convert raw items into the Master Excel sheet.</p>
+            </div>
+
+            {% if submissions %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Preview / Type</th>
+                            <th>Title & File</th>
+                            <th>Category</th>
+                            <th>Submitted By</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sub in submissions %}
+                        <tr>
+                            <td>#{{ sub.id }}</td>
+                            <td>
+                                {% if sub.file_type == 'image' %}
+                                <div class="thumb-wrapper" onclick="openInspectModal({{ sub.id }})">
+                                    <img src="{{ url_for('serve_upload', filename=sub.file_path) }}" alt="Preview" class="table-thumb">
+                                </div>
+                                {% elif sub.file_type in ['excel', 'csv'] %}
+                                <span class="file-icon-badge file-excel" title="Spreadsheet"><i class="fa-solid fa-file-excel"></i></span>
+                                {% elif sub.file_type == 'pdf' %}
+                                <span class="file-icon-badge file-pdf" title="PDF Document"><i class="fa-solid fa-file-pdf"></i></span>
+                                {% else %}
+                                <span class="file-icon-badge file-generic" title="File"><i class="fa-solid fa-file-lines"></i></span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ sub.title }}</strong>
+                                <div class="text-muted text-xs">{{ sub.original_filename }} ({{ (sub.file_size / 1024)|round(1) }} KB)</div>
+                                {% if sub.notes %}<div class="text-note text-xs"><i class="fa-solid fa-comment-dots"></i> {{ sub.notes }}</div>{% endif %}
+                            </td>
+                            <td><span class="badge-category">{{ sub.category }}</span></td>
+                            <td>{{ sub.client_name }}</td>
+                            <td class="text-xs">{{ sub.created_at[:16] }}</td>
+                            <td>
+                                <span class="badge-status status-{{ sub.status|lower|replace(' ', '-') }}">
+                                    {{ sub.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="table-action-btns">
+                                    <button type="button" class="btn-action btn-inspect" onclick="openInspectModal({{ sub.id }})" title="Inspect file & format into Excel">
+                                        <i class="fa-solid fa-eye"></i> Inspect & Format
+                                    </button>
+                                    <form action="{{ url_for('delete_submission', submission_id=sub.id) }}" method="POST" onsubmit="return confirm('Delete this submission and file?')" style="display:inline;">
+                                        <button type="submit" class="btn-action btn-delete" title="Delete">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fa-solid fa-inbox empty-icon"></i>
+                <h3>No raw submissions yet</h3>
+                <p>Upload a raw receipt image or Excel sheet in Step 1 to begin formatting.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- TAB 3: Master Formatted Sheet -->
+    <div id="masterTab" class="portal-tab-content">
+        <div class="glass-card">
+            <div class="master-header-row">
+                <div class="section-heading">
+                    <div class="heading-badge"><i class="fa-solid fa-table"></i> Step 3</div>
+                    <h2>Master Formatted Excel Register</h2>
+                    <p>Standardized accounting data ready for instant export into professionally styled <code>.xlsx</code>.</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('export_excel') }}" class="btn btn-excel-download">
+                        <i class="fa-solid fa-file-arrow-down"></i> Export to Excel
+                    </a>
+                </div>
+            </div>
+
+            <!-- Manual Add Row Form -->
+            <details class="manual-add-drawer">
+                <summary class="btn btn-secondary btn-sm mb-3">
+                    <i class="fa-solid fa-plus"></i> + Add Formatted Row Manually
+                </summary>
+                <form action="{{ url_for('add_master_record') }}" method="POST" class="master-entry-form">
+                    <div class="form-grid-4">
+                        <div class="form-group">
+                            <label class="form-label">Date</label>
+                            <input type="date" name="entry_date" class="form-control" value="2026-10-11" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Vendor / Client</label>
+                            <input type="text" name="vendor_client" class="form-control" placeholder="e.g. Acme Corp" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Invoice / Ref #</label>
+                            <input type="text" name="invoice_no" class="form-control" placeholder="e.g. INV-1049">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <select name="category" class="form-control">
+                                <option value="Office Supplies">Office Supplies</option>
+                                <option value="Software & IT">Software & IT</option>
+                                <option value="Travel & Meals">Travel & Meals</option>
+                                <option value="Consulting">Consulting / Services</option>
+                                <option value="Utilities">Utilities</option>
+                                <option value="Marketing">Marketing & Ads</option>
+                                <option value="General">General / Miscellaneous</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-grid-4 mt-2">
+                        <div class="form-group">
+                            <label class="form-label">Particulars / Description</label>
+                            <input type="text" name="description" class="form-control" placeholder="e.g. Cloud Server Hosting - Q3" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Subtotal ($)</label>
+                            <input type="number" step="0.01" name="subtotal" id="manualSubtotal" class="form-control" value="0.00" oninput="calcManualTotal()" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Tax / VAT ($)</label>
+                            <input type="number" step="0.01" name="tax_amount" id="manualTax" class="form-control" value="0.00" oninput="calcManualTotal()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Total Amount ($)</label>
+                            <input type="number" step="0.01" name="total_amount" id="manualTotal" class="form-control" value="0.00" readonly>
+                        </div>
+                    </div>
+                    <div class="form-row justify-between mt-2">
+                        <div class="form-group">
+                            <label class="form-label">Payment Status</label>
+                            <select name="payment_status" class="form-control">
+                                <option value="Paid">Paid</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Overdue">Overdue</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-4">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Entry
+                        </button>
+                    </div>
+                </form>
+            </details>
+
+            {% if master_records %}
+            <div class="table-responsive mt-3">
+                <table class="data-table master-sheet-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Date</th>
+                            <th>Vendor / Client</th>
+                            <th>Invoice #</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th class="text-right">Subtotal</th>
+                            <th class="text-right">Tax</th>
+                            <th class="text-right">Total Amount</th>
+                            <th>Status</th>
+                            <th>Source</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in master_records %}
+                        <tr>
+                            <td>#{{ row.id }}</td>
+                            <td>{{ row.entry_date }}</td>
+                            <td><strong>{{ row.vendor_client }}</strong></td>
+                            <td>{{ row.invoice_no or '-' }}</td>
+                            <td>{{ row.description }}</td>
+                            <td><span class="badge-category">{{ row.category }}</span></td>
+                            <td class="text-right">${{ "{:,.2f}".format(row.subtotal) }}</td>
+                            <td class="text-right text-muted">${{ "{:,.2f}".format(row.tax_amount) }}</td>
+                            <td class="text-right text-bold text-cyan">${{ "{:,.2f}".format(row.total_amount) }}</td>
+                            <td>
+                                <span class="badge-status status-{{ row.payment_status|lower }}">
+                                    {{ row.payment_status }}
+                                </span>
+                            </td>
+                            <td class="text-xs text-muted">
+                                {% if row.original_filename %}
+                                <a href="{{ url_for('serve_upload', filename=row.file_path) }}" target="_blank" class="primary-link">
+                                    <i class="fa-solid fa-paperclip"></i> {{ row.original_filename[:15] }}...
+                                </a>
+                                {% else %}
+                                Direct Entry
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form action="{{ url_for('delete_record', record_id=row.id) }}" method="POST" onsubmit="return confirm('Remove this row from Master Excel Sheet?')" style="display:inline;">
+                                    <button type="submit" class="btn-action btn-delete" title="Delete record">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="master-total-row">
+                            <td colspan="6" class="text-right text-bold">TOTAL REGISTER SUMMARY:</td>
+                            <td class="text-right text-bold">${{ "{:,.2f}".format(stats.total_expenditure - stats.total_tax) }}</td>
+                            <td class="text-right text-bold text-muted">${{ "{:,.2f}".format(stats.total_tax) }}</td>
+                            <td class="text-right text-bold text-cyan">${{ "{:,.2f}".format(stats.total_expenditure) }}</td>
+                            <td colspan="3"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fa-solid fa-file-excel empty-icon"></i>
+                <h3>No formatted records in Master Sheet</h3>
+                <p>Go to the <strong>Raw Submissions Queue</strong> tab, inspect a client upload, and format it into the sheet!</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================================================
+     INSPECT & FORMAT MODAL
+     ========================================================================== -->
+<div id="inspectModal" class="inspect-modal-backdrop" style="display: none;">
+    <div class="glass-card inspect-modal-container animate-slide-up">
+        <div class="modal-header">
+            <div class="modal-title-group">
+                <span class="modal-badge"><i class="fa-solid fa-sliders"></i> RAW DATA INSPECTION & ENTRY</span>
+                <h2 id="modalSubmissionTitle">Submission Details</h2>
+            </div>
+            <button type="button" class="modal-close-btn" onclick="closeInspectModal()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="modal-body-split">
+            <!-- Left Side: Raw File Viewer -->
+            <div class="modal-left-viewer">
+                <div class="viewer-header">
+                    <h4><i class="fa-solid fa-eye"></i> Raw File Attachment</h4>
+                    <a id="modalDownloadLink" href="#" target="_blank" class="primary-link text-xs">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Original
+                    </a>
+                </div>
+                <div id="modalViewerContent" class="viewer-content">
+                    <!-- Dynamic: Image, Excel Preview Table, or Doc Icon -->
+                </div>
+            </div>
+
+            <!-- Right Side: Structured Excel Entry Form -->
+            <div class="modal-right-form">
+                <div class="viewer-header">
+                    <h4><i class="fa-solid fa-file-pen"></i> Format into Master Excel</h4>
+                    <span class="text-xs text-muted">Auto-saves into formatted register</span>
+                </div>
+
+                <form action="{{ url_for('add_master_record') }}" method="POST" id="modalFormatForm" class="auth-form">
+                    <input type="hidden" name="submission_id" id="modalSubmissionId">
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Date</label>
+                            <input type="date" name="entry_date" id="modalDate" class="form-control" value="2026-10-11" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <select name="category" id="modalCategory" class="form-control">
+                                <option value="Invoices">Invoices / Bills</option>
+                                <option value="Office Supplies">Office Supplies</option>
+                                <option value="Software & IT">Software & IT</option>
+                                <option value="Travel & Meals">Travel & Meals</option>
+                                <option value="Consulting">Consulting / Services</option>
+                                <option value="Utilities">Utilities</option>
+                                <option value="General">General</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Vendor / Client Name</label>
+                        <input type="text" name="vendor_client" id="modalVendor" class="form-control" placeholder="e.g. AWS Cloud, Staples, Dell..." required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Invoice / Receipt Ref #</label>
+                        <input type="text" name="invoice_no" id="modalInvoiceNo" class="form-control" placeholder="e.g. INV-98421">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Particulars / Description</label>
+                        <textarea name="description" id="modalDescription" class="form-control" rows="2" placeholder="Itemized breakdown or particulars from the raw data..." required></textarea>
+                    </div>
+
+                    <div class="form-grid-3">
+                        <div class="form-group">
+                            <label class="form-label">Subtotal ($)</label>
+                            <input type="number" step="0.01" name="subtotal" id="modalSubtotal" class="form-control" value="0.00" oninput="calcModalTotal()" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Tax / VAT ($)</label>
+                            <input type="number" step="0.01" name="tax_amount" id="modalTax" class="form-control" value="0.00" oninput="calcModalTotal()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Total Amount ($)</label>
+                            <input type="number" step="0.01" name="total_amount" id="modalTotal" class="form-control" value="0.00" readonly>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Payment Status</label>
+                        <select name="payment_status" id="modalStatus" class="form-control">
+                            <option value="Paid">Paid</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Overdue">Overdue</option>
+                        </select>
+                    </div>
+
+                    <div class="modal-footer-actions">
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fa-solid fa-check-double"></i> Save to Master Excel Sheet
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// --- Tab Switching ---
+function switchTab(tabId) {
+    document.querySelectorAll('.portal-tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.portal-tab-btn').forEach(el => el.classList.remove('active'));
+    
+    document.getElementById(tabId).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+
+// --- Drag & Drop file handler ---
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const selectedFileName = document.getElementById('selectedFileName');
+
+if (dropzone && fileInput) {
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            updateFileLabel();
+        }
+    });
+
+    fileInput.addEventListener('change', updateFileLabel);
+}
+
+function updateFileLabel() {
+    if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        selectedFileName.style.display = 'inline-block';
+        selectedFileName.innerHTML = `<i class="fa-solid fa-file-circle-check"></i> ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+        
+        const titleField = document.getElementById('uploadTitle');
+        if (titleField && !titleField.value) {
+            titleField.value = file.name.replace(/\.[^/.]+$/, "");
+        }
+    }
+}
+
+// --- Calculations ---
+function calcManualTotal() {
+    const sub = parseFloat(document.getElementById('manualSubtotal').value) || 0;
+    const tax = parseFloat(document.getElementById('manualTax').value) || 0;
+    document.getElementById('manualTotal').value = (sub + tax).toFixed(2);
+}
+
+function calcModalTotal() {
+    const sub = parseFloat(document.getElementById('modalSubtotal').value) || 0;
+    const tax = parseFloat(document.getElementById('modalTax').value) || 0;
+    document.getElementById('modalTotal').value = (sub + tax).toFixed(2);
+}
+
+// --- Inspect Modal ---
+function openInspectModal(submissionId) {
+    fetch(`/submission/${submissionId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            document.getElementById('modalSubmissionId').value = data.id;
+            document.getElementById('modalSubmissionTitle').textContent = `Inspection: ${data.title} (#${data.id})`;
+            document.getElementById('modalDownloadLink').href = data.file_url;
+            document.getElementById('modalVendor').value = data.client_name || '';
+            document.getElementById('modalDescription').value = data.notes || data.title;
+            
+            const viewer = document.getElementById('modalViewerContent');
+            viewer.innerHTML = '';
+
+            if (data.file_type === 'image') {
+                viewer.innerHTML = `
+                    <div class="image-viewer-box">
+                        <img src="${data.file_url}" alt="Raw picture" class="inspect-full-image">
+                    </div>
+                `;
+            } else if (data.file_type === 'excel' || data.file_type === 'csv') {
+                if (data.preview_data && data.preview_data.columns) {
+                    let tableHtml = `<div class="raw-preview-wrapper"><table class="raw-sheet-preview"><thead><tr>`;
+                    data.preview_data.columns.forEach(col => {
+                        tableHtml += `<th>${col}</th>`;
+                    });
+                    tableHtml += `</tr></thead><tbody>`;
+                    data.preview_data.rows.forEach(row => {
+                        tableHtml += `<tr>`;
+                        row.forEach(cell => {
+                            tableHtml += `<td>${cell}</td>`;
+                        });
+                        tableHtml += `</tr>`;
+                    });
+                    tableHtml += `</tbody></table></div>`;
+                    viewer.innerHTML = tableHtml;
+                } else {
+                    viewer.innerHTML = `
+                        <div class="file-card-box">
+                            <i class="fa-solid fa-file-excel file-lg-icon text-emerald"></i>
+                            <p>${data.original_filename}</p>
+                            <a href="${data.file_url}" download class="btn btn-secondary btn-sm">Download Raw Sheet</a>
+                        </div>
+                    `;
+                }
+            } else {
+                viewer.innerHTML = `
+                    <div class="file-card-box">
+                        <i class="fa-solid fa-file-lines file-lg-icon text-indigo"></i>
+                        <p>${data.original_filename}</p>
+                        <a href="${data.file_url}" target="_blank" class="btn btn-secondary btn-sm">Open File</a>
+                    </div>
+                `;
+            }
+
+            document.getElementById('inspectModal').style.display = 'flex';
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Failed to load submission details.');
+        });
+}
+
+function closeInspectModal() {
+    document.getElementById('inspectModal').style.display = 'none';
+}
+
+// Close on backdrop click
+window.onclick = function(event) {
+    const modal = document.getElementById('inspectModal');
+    if (event.target === modal) {
+        closeInspectModal();
+    }
+};
+</script>
+{% endblock %}
