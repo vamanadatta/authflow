@@ -11,11 +11,15 @@ from werkzeug.utils import secure_filename
 import database as db
 import excel_generator
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "templates"),
+    static_folder=os.path.join(BASE_DIR, "static")
+)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "super-secret-dev-key-7f9a2b4e8c1d")
 
 # Upload configurations
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if os.environ.get("VERCEL"):
     UPLOAD_FOLDER = "/tmp/uploads"
 else:

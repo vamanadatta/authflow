@@ -12,3 +12,5 @@ app.db
 uploads/*
 !uploads/.gitkeep
 .vercel/
+
+.vercel
